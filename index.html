@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎵 Reproductor de Rol - Bardic Tunes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1 class="app-title">
+                <span class="icon-lyre">🎶</span>
+                Bardic Tunes
+                <span class="icon-lyre">🎶</span>
+            </h1>
+            <p class="app-subtitle">Reproductor de Música para Rol</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Panel izquierdo: Explorador de archivos -->
+            <aside class="file-explorer-panel">
+                <div class="panel-header">
+                    <h2>📁 Biblioteca Musical</h2>
+                    <button id="btn-load-folder" class="btn-fantasy" title="Cargar carpeta de música">
+                        <span class="btn-icon">📂</span>
+                        <span class="btn-text">Cargar Música</span>
+                    </button>
+                    <input type="file" id="folder-input" webkitdirectory multiple hidden accept="audio/*">
+                </div>
+                <div id="file-tree" class="file-tree">
+                    <div class="empty-state">
+                        <span class="empty-icon">🗃️</span>
+                        <p>No hay música cargada</p>
+                        <p class="hint">Haz clic en "Cargar Música" para seleccionar una carpeta</p>
+                    </div>
+                </div>
+                
+                <!-- Carpetas guardadas -->
+                <div class="saved-folders-section">
+                    <h3>⭐ Carpetas Guardadas</h3>
+                    <div id="saved-folders-list" class="saved-folders-list">
+                        <div class="empty-state small">
+                            <span>No hay carpetas guardadas</span>
+                        </div>
+                    </div>
+                    <div class="panel-header-actions">
+                        <button id="btn-save-folder" class="btn-small-action" title="Guardar carpeta actual">
+                            💾 Guardar Actual
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Panel derecho: Reproductor y playlist -->
+            <section class="player-section">
+                <!-- Información de la canción actual -->
+                <div class="now-playing">
+                    <div class="album-art">
+                        <div class="album-placeholder">
+                            <span>🎵</span>
+                        </div>
+                    </div>
+                    <div class="track-info">
+                        <h3 id="track-title" class="track-title">Sin reproducción</h3>
+                        <p id="track-folder" class="track-folder">Selecciona una canción para comenzar</p>
+                    </div>
+                </div>
+
+                <!-- Barra de progreso -->
+                <div class="progress-container">
+                    <span id="time-current" class="time-display">0:00</span>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar" id="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                            <div class="progress-handle" id="progress-handle"></div>
+                        </div>
+                        <div class="progress-glow"></div>
+                    </div>
+                    <span id="time-duration" class="time-display">0:00</span>
+                </div>
+
+                <!-- Controles principales -->
+                <div class="controls-main">
+                    <button id="btn-shuffle" class="btn-control btn-secondary" title="Aleatorio">
+                        🔀
+                    </button>
+                    <button id="btn-prev" class="btn-control" title="Anterior">
+                        ⏮️
+                    </button>
+                    <button id="btn-play" class="btn-control btn-play" title="Reproducir">
+                        ▶️
+                    </button>
+                    <button id="btn-next" class="btn-control" title="Siguiente">
+                        ⏭️
+                    </button>
+                    <button id="btn-loop" class="btn-control btn-secondary" title="Repetir">
+                        🔁
+                    </button>
+                </div>
+
+                <!-- Controles secundarios -->
+                <div class="controls-secondary">
+                    <div class="volume-control">
+                        <button id="btn-mute" class="btn-control btn-small" title="Silenciar">
+                            🔊
+                        </button>
+                        <div class="volume-slider-wrapper">
+                            <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="80" title="Control de volumen">
+                        </div>
+                    </div>
+                    <div class="playback-mode">
+                        <label class="mode-label">Modo:</label>
+                        <select id="playback-mode" class="select-fantasy" title="Control de modo de reproducción">
+                            <option value="manual">Manual</option>
+                            <option value="sequential">Secuencial</option>
+                            <option value="shuffle">Aleatorio</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Cola de reproducción -->
+                <div class="playlist-panel">
+                    <div class="panel-header">
+                        <h2>📜 Cola de Reproducción</h2>
+                        <span id="playlist-count" class="playlist-count">0 canciones</span>
+                        <button id="btn-clear-playlist" class="btn-clear-playlist" title="Limpiar cola">
+                            🗑️ Limpiar
+                        </button>
+                    </div>
+                    <ul id="playlist" class="playlist">
+                        <li class="empty-state">
+                            <span>La cola está vacía</span>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer con atajos -->
+        <footer class="app-footer">
+            <div class="shortcuts-hint">
+                <span><kbd>Espacio</kbd> Play/Pausa</span>
+                <span><kbd>←</kbd><kbd>→</kbd> Retroceder/Avanzar 5s</span>
+                <span><kbd>↑</kbd><kbd>↓</kbd> Volumen</span>
+                <span><kbd>M</kbd> Silenciar</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/player.js"></script>
+    <script src="js/playlist.js"></script>
+    <script src="js/fileExplorer.js"></script>
+    <script src="js/configManager.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
