@@ -47,10 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Playlist
         playlistElement: document.getElementById('playlist'),
         playlistCount: document.getElementById('playlist-count'),
-        
-        // Carpetas guardadas
-        btnSaveFolder: document.getElementById('btn-save-folder'),
-        savedFoldersList: document.getElementById('saved-folders-list'),
         btnClearPlaylist: document.getElementById('btn-clear-playlist')
     };
     
@@ -123,12 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ya NO añade automáticamente a la playlist
         // Solo muestra los archivos en el explorador
         console.log(`🎵 ${files.length} archivos de audio cargados en el explorador`);
-        
-        // Guardar referencia de la última carpeta
-        if (files.length > 0) {
-            const folderPath = files[0].folder.split('/')[0];
-            configManager.setLastFolder(folderPath);
-        }
     };
     
     // Función para verificar si un track está en la playlist
@@ -171,7 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     elements.folderInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            fileExplorer.processFiles(e.target.files);
+            // append = true para NO limpiar las carpetas existentes
+            fileExplorer.processFiles(e.target.files, true);
         }
     });
     
@@ -192,7 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dropZone.classList.remove('drag-over');
         
         if (e.dataTransfer.files.length > 0) {
-            fileExplorer.processFiles(e.dataTransfer.files);
+            // append = true para NO limpiar las carpetas existentes
+            fileExplorer.processFiles(e.dataTransfer.files, true);
         }
     });
     
@@ -429,47 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    /**
-     * Actualiza la lista de carpetas guardadas
-     */
-    function updateSavedFoldersUI() {
-        if (!elements.savedFoldersList) return;
-        
-        const folders = configManager.getSavedFolders();
-        
-        if (folders.length === 0) {
-            elements.savedFoldersList.innerHTML = `
-                <div class="empty-state small">
-                    <span>No hay carpetas guardadas</span>
-                </div>
-            `;
-            return;
-        }
-        
-        elements.savedFoldersList.innerHTML = folders.map(folder => `
-            <div class="saved-folder-item" data-folder-id="${folder.id}">
-                <span class="saved-folder-icon">📁</span>
-                <span class="saved-folder-name" title="${folder.path}">${folder.name}</span>
-                <span class="saved-folder-count">(${folder.fileCount})</span>
-                <button class="btn-remove-saved" data-folder-id="${folder.id}" title="Eliminar de guardados">✖</button>
-            </div>
-        `).join('');
-        
-        // Event listeners para eliminar carpeta guardada
-        elements.savedFoldersList.querySelectorAll('.btn-remove-saved').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const folderId = parseInt(btn.dataset.folderId);
-                configManager.removeFolder(folderId);
-            });
-        });
-    }
-    
-    // Callback cuando se actualizan las carpetas guardadas
-    configManager.onFoldersUpdate = (folders) => {
-        updateSavedFoldersUI();
-    };
-    
     // ============================================
     // INICIALIZACIÓN
     // ============================================
@@ -498,25 +449,25 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('%cQue la música acompañe tus aventuras!', 
         'font-size: 14px; font-style: italic; color: #a8a5a0;');
     
-    // Inicializar UI de carpetas guardadas
-    updateSavedFoldersUI();
+    // Configurar callback cuando se carguen carpetas desde config.js
+    configManager.onFolderLoaded = (folderName, files) => {
+        console.log(`📁 Carpeta "${folderName}" cargada con ${files.length} archivos`);
+        fileExplorer.addFilesFromConfig(files, folderName);
+    };
     
-    // Botón guardar carpeta actual
-    if (elements.btnSaveFolder) {
-        elements.btnSaveFolder.addEventListener('click', () => {
-            const files = fileExplorer.getFiles();
-            if (files.length === 0) {
-                alert('Primero carga una carpeta de música');
-                return;
-            }
-            
-            const folderPath = files[0].folder.split('/')[0];
-            const folderName = prompt('Nombre para esta carpeta:', folderPath);
-            
-            if (folderName) {
-                configManager.saveFolder(folderName, folderPath, files.length);
-            }
-        });
+    configManager.onAllFoldersLoaded = (allFiles) => {
+        if (allFiles.length > 0) {
+            console.log(`✅ Total: ${allFiles.length} archivos de música disponibles`);
+        }
+    };
+    
+    configManager.onLoadError = (path, error) => {
+        console.warn(`⚠️ No se pudo cargar "${path}": ${error.message}`);
+    };
+    
+    // Cargar carpetas desde config.js si hay configuradas
+    if (configManager.hasFoldersConfigured()) {
+        configManager.loadAllFolders();
     }
     
     // Botón limpiar playlist

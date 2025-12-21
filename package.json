@@ -1,0 +1,22 @@
+{
+  "name": "bardic-tunes",
+  "version": "1.0.0",
+  "description": "Reproductor de música web para partidas de rol",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "music",
+    "player",
+    "rpg",
+    "rol",
+    "fantasy"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

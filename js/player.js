@@ -114,20 +114,35 @@ class AudioPlayer {
     
     /**
      * Carga y prepara una pista para reproducir
-     * @param {Object} track - Objeto con info de la pista {file, name, folder}
+     * @param {Object} track - Objeto con info de la pista {file, name, folder, src}
      */
     loadTrack(track) {
+        // Limpiar objectUrl anterior si existe
         if (this.currentTrack?.objectUrl) {
             URL.revokeObjectURL(this.currentTrack.objectUrl);
         }
         
         this.currentTrack = track;
         
-        if (track.file) {
+        // Archivos locales del navegador (tienen objeto File)
+        if (track.file instanceof File) {
+            console.log('🎵 Cargando archivo local:', track.name);
             track.objectUrl = URL.createObjectURL(track.file);
             this.audio.src = track.objectUrl;
-        } else if (track.src) {
+        } 
+        // Archivos del servidor (tienen src como URL)
+        else if (track.src) {
+            console.log('🎵 Cargando desde servidor:', track.name);
             this.audio.src = track.src;
+        }
+        // Fallback: intentar con path
+        else if (track.path) {
+            console.log('🎵 Cargando desde path:', track.name);
+            this.audio.src = track.path;
+        }
+        else {
+            console.error('❌ No se puede cargar el track:', track);
+            return;
         }
         
         this.audio.load();

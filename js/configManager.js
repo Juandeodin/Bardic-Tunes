@@ -1,217 +1,166 @@
 /**
- * ConfigManager - Gestión de configuración y carpetas guardadas
- * Usa localStorage para persistencia (compatible con todos los navegadores)
+ * ConfigManager - Gestión de configuración y precarga de carpetas
+ * Usa la API del servidor para escanear carpetas de música
  */
 class ConfigManager {
     constructor() {
-        this.savedFolders = [];
-        this.config = {
-            defaultVolume: 0.8,
-            defaultMode: 'manual',
-            autoPlay: false,
-            lastFolder: null
+        this.config = window.MUSIC_CONFIG || {
+            folders: [],
+            settings: {
+                defaultVolume: 0.8,
+                defaultMode: 'manual',
+                supportedFormats: ['.mp3', '.ogg', '.wav', '.flac', '.m4a', '.aac', '.webm']
+            }
         };
+        
+        this.loadedFolders = [];
+        this.isLoading = false;
+        this.useServer = true; // Usar API del servidor
         
         // Callbacks
-        this.onFoldersUpdate = null;
-        
-        this._loadFromStorage();
+        this.onFolderLoaded = null;  // callback(folderName, files[])
+        this.onAllFoldersLoaded = null;  // callback(allFiles[])
+        this.onLoadError = null;  // callback(folderPath, error)
     }
     
     /**
-     * Carga datos desde localStorage
+     * Obtiene la configuración de settings
      */
-    _loadFromStorage() {
+    getSettings() {
+        return this.config.settings;
+    }
+    
+    /**
+     * Obtiene las carpetas configuradas
+     */
+    getConfiguredFolders() {
+        return this.config.folders || [];
+    }
+    
+    /**
+     * Carga todas las carpetas configuradas en config.js
+     * @returns {Promise<Array>} Array con todos los archivos cargados
+     */
+    async loadAllFolders() {
+        const folders = this.getConfiguredFolders();
+        
+        if (folders.length === 0) {
+            console.log('📁 No hay carpetas configuradas en config.js');
+            return [];
+        }
+        
+        this.isLoading = true;
+        const allFiles = [];
+        
+        console.log(`📁 Cargando ${folders.length} carpetas...`);
+        
+        for (const folderPath of folders) {
+            try {
+                const files = await this.loadFolder(folderPath);
+                allFiles.push(...files);
+                
+                if (this.onFolderLoaded) {
+                    const folderName = folderPath.split('/').pop();
+                    this.onFolderLoaded(folderName, files);
+                }
+            } catch (error) {
+                console.warn(`⚠️ Error cargando carpeta "${folderPath}":`, error.message);
+                if (this.onLoadError) {
+                    this.onLoadError(folderPath, error);
+                }
+            }
+        }
+        
+        this.isLoading = false;
+        
+        if (this.onAllFoldersLoaded) {
+            this.onAllFoldersLoaded(allFiles);
+        }
+        
+        console.log(`✅ Carga completa: ${allFiles.length} archivos de ${folders.length} carpetas`);
+        return allFiles;
+    }
+    
+    /**
+     * Carga una carpeta usando la API del servidor
+     * @param {string} folderPath - Ruta relativa de la carpeta
+     * @returns {Promise<Array>} Array de objetos de archivo
+     */
+    async loadFolder(folderPath) {
         try {
-            // Cargar carpetas guardadas
-            const savedFoldersData = localStorage.getItem('bardicTunes_savedFolders');
-            if (savedFoldersData) {
-                this.savedFolders = JSON.parse(savedFoldersData);
+            // Usar API del servidor para escanear la carpeta (recursivo)
+            const response = await fetch(`/api/files?folder=${encodeURIComponent(folderPath)}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Error ${response.status} al cargar ${folderPath}`);
             }
             
-            // Cargar configuración
-            const configData = localStorage.getItem('bardicTunes_config');
-            if (configData) {
-                this.config = { ...this.config, ...JSON.parse(configData) };
-            }
+            const data = await response.json();
+            const files = data.files || [];
+            
+            console.log(`📁 Carpeta "${folderPath}" cargada: ${files.length} archivos`);
+            
+            // Marcar archivos como provenientes del servidor
+            files.forEach(f => {
+                f.isFromConfig = true;
+                f.isFromServer = true;
+            });
+            
+            this.loadedFolders.push({
+                path: folderPath,
+                name: folderPath.split('/').pop(),
+                files: files
+            });
+            
+            return files;
+            
         } catch (error) {
-            console.warn('Error cargando configuración:', error);
+            // Si falla la API, puede que no esté corriendo el servidor
+            if (error.message.includes('Failed to fetch')) {
+                throw new Error('Servidor no disponible. Ejecuta: npm start');
+            }
+            throw error;
         }
     }
     
     /**
-     * Guarda datos en localStorage
+     * Carga todo el árbol de música automáticamente (sin config.js)
+     * @returns {Promise<Object>} Árbol completo de música
      */
-    _saveToStorage() {
+    async loadMusicTree() {
         try {
-            localStorage.setItem('bardicTunes_savedFolders', JSON.stringify(this.savedFolders));
-            localStorage.setItem('bardicTunes_config', JSON.stringify(this.config));
+            const response = await fetch('/api/music-tree');
+            
+            if (!response.ok) {
+                throw new Error('No se pudo cargar el árbol de música');
+            }
+            
+            const tree = await response.json();
+            return tree;
         } catch (error) {
-            console.warn('Error guardando configuración:', error);
-        }
-    }
-    
-    /**
-     * Guarda una carpeta en favoritos
-     * @param {string} name - Nombre a mostrar
-     * @param {string} path - Ruta de la carpeta (para referencia)
-     * @param {number} fileCount - Número de archivos
-     */
-    saveFolder(name, path, fileCount = 0) {
-        // Verificar si ya existe
-        const existingIndex = this.savedFolders.findIndex(f => f.path === path);
-        
-        const folderData = {
-            id: existingIndex !== -1 ? this.savedFolders[existingIndex].id : Date.now(),
-            name: name,
-            path: path,
-            fileCount: fileCount,
-            savedAt: new Date().toISOString()
-        };
-        
-        if (existingIndex !== -1) {
-            this.savedFolders[existingIndex] = folderData;
-        } else {
-            this.savedFolders.push(folderData);
-        }
-        
-        this._saveToStorage();
-        
-        if (this.onFoldersUpdate) {
-            this.onFoldersUpdate(this.savedFolders);
-        }
-        
-        return folderData;
-    }
-    
-    /**
-     * Elimina una carpeta de favoritos
-     * @param {number} id - ID de la carpeta
-     */
-    removeFolder(id) {
-        this.savedFolders = this.savedFolders.filter(f => f.id !== id);
-        this._saveToStorage();
-        
-        if (this.onFoldersUpdate) {
-            this.onFoldersUpdate(this.savedFolders);
-        }
-    }
-    
-    /**
-     * Renombra una carpeta guardada
-     * @param {number} id - ID de la carpeta
-     * @param {string} newName - Nuevo nombre
-     */
-    renameFolder(id, newName) {
-        const folder = this.savedFolders.find(f => f.id === id);
-        if (folder) {
-            folder.name = newName;
-            this._saveToStorage();
-            
-            if (this.onFoldersUpdate) {
-                this.onFoldersUpdate(this.savedFolders);
+            if (error.message.includes('Failed to fetch')) {
+                throw new Error('Servidor no disponible. Ejecuta: npm start');
             }
+            throw error;
         }
     }
     
     /**
-     * Obtiene todas las carpetas guardadas
+     * Verifica si hay carpetas configuradas
      */
-    getSavedFolders() {
-        return this.savedFolders;
+    hasFoldersConfigured() {
+        return this.config.folders && this.config.folders.length > 0;
     }
     
     /**
-     * Obtiene una carpeta por ID
-     * @param {number} id 
+     * Obtiene las carpetas ya cargadas
      */
-    getFolderById(id) {
-        return this.savedFolders.find(f => f.id === id);
-    }
-    
-    /**
-     * Guarda la última carpeta cargada
-     * @param {string} path 
-     */
-    setLastFolder(path) {
-        this.config.lastFolder = path;
-        this._saveToStorage();
-    }
-    
-    /**
-     * Obtiene la última carpeta cargada
-     */
-    getLastFolder() {
-        return this.config.lastFolder;
-    }
-    
-    /**
-     * Actualiza configuración
-     * @param {Object} newConfig 
-     */
-    updateConfig(newConfig) {
-        this.config = { ...this.config, ...newConfig };
-        this._saveToStorage();
-    }
-    
-    /**
-     * Obtiene la configuración actual
-     */
-    getConfig() {
-        return { ...this.config };
-    }
-    
-    /**
-     * Limpia todas las carpetas guardadas
-     */
-    clearSavedFolders() {
-        this.savedFolders = [];
-        this._saveToStorage();
-        
-        if (this.onFoldersUpdate) {
-            this.onFoldersUpdate(this.savedFolders);
-        }
-    }
-    
-    /**
-     * Exporta configuración como JSON
-     */
-    exportConfig() {
-        return JSON.stringify({
-            savedFolders: this.savedFolders,
-            config: this.config,
-            exportedAt: new Date().toISOString()
-        }, null, 2);
-    }
-    
-    /**
-     * Importa configuración desde JSON
-     * @param {string} jsonString 
-     */
-    importConfig(jsonString) {
-        try {
-            const data = JSON.parse(jsonString);
-            
-            if (data.savedFolders) {
-                this.savedFolders = data.savedFolders;
-            }
-            if (data.config) {
-                this.config = { ...this.config, ...data.config };
-            }
-            
-            this._saveToStorage();
-            
-            if (this.onFoldersUpdate) {
-                this.onFoldersUpdate(this.savedFolders);
-            }
-            
-            return true;
-        } catch (error) {
-            console.error('Error importando configuración:', error);
-            return false;
-        }
+    getLoadedFolders() {
+        return this.loadedFolders;
     }
 }
 
 // Exportar para uso en otros módulos
 window.ConfigManager = ConfigManager;
+

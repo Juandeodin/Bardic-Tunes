@@ -28,28 +28,39 @@ class FileExplorer {
     /**
      * Procesa los archivos cargados desde el input
      * @param {FileList} fileList 
+     * @param {boolean} append - Si true, añade a los existentes en lugar de reemplazar
      */
-    processFiles(fileList) {
-        this.files = [];
-        this.folderStructure = {};
+    processFiles(fileList, append = false) {
+        if (!append) {
+            this.files = [];
+            this.folderStructure = {};
+        }
+        
+        console.log(`📂 Procesando ${fileList.length} archivos desde navegador...`);
         
         // Filtrar solo archivos de audio soportados
         for (const file of fileList) {
             const ext = this._getExtension(file.name);
             if (this.supportedFormats.includes(ext)) {
                 // Obtener la ruta relativa de la carpeta
-                const pathParts = file.webkitRelativePath.split('/');
-                const folderPath = pathParts.slice(0, -1).join('/');
+                // webkitRelativePath puede estar vacío en algunos navegadores
+                const relativePath = file.webkitRelativePath || file.name;
+                const pathParts = relativePath.split('/');
+                const folderPath = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : 'Música Local';
                 const fileName = pathParts[pathParts.length - 1];
                 
                 const trackInfo = {
-                    file: file,
+                    file: file,  // Objeto File del navegador - IMPORTANTE para reproducir
                     name: this._cleanFileName(fileName),
                     displayName: this._cleanFileName(fileName),
                     folder: folderPath,
-                    path: file.webkitRelativePath,
-                    extension: ext
+                    path: relativePath,
+                    src: null,  // Se creará objectURL al reproducir
+                    extension: ext,
+                    isLocal: true  // Marca como archivo local del navegador
                 };
+                
+                console.log(`  ✓ ${trackInfo.name} (${folderPath})`);
                 
                 this.files.push(trackInfo);
                 
@@ -152,7 +163,7 @@ class FileExplorer {
                 <div class="empty-state">
                     <span class="empty-icon">🗃️</span>
                     <p>No hay música cargada</p>
-                    <p class="hint">Haz clic en "Cargar Música" para seleccionar una carpeta</p>
+                    <p class="hint">Haz clic en "Cargar Música" o configura carpetas en config.js</p>
                 </div>
             `;
             return;
@@ -489,6 +500,52 @@ class FileExplorer {
      */
     getFileCount() {
         return this.files.length;
+    }
+    
+    /**
+     * Añade archivos desde la configuración (config.js / servidor)
+     * Construye la estructura de carpetas igual que cuando se cargan desde navegador
+     * @param {Array} files - Array de objetos de archivo
+     * @param {string} folderName - Nombre de la carpeta raíz (opcional)
+     */
+    addFilesFromConfig(files, folderName) {
+        console.log(`📂 Añadiendo ${files.length} archivos desde servidor...`);
+        
+        // Añadir archivos al array principal
+        for (const file of files) {
+            // Evitar duplicados
+            if (!this.files.some(f => f.path === file.path)) {
+                this.files.push(file);
+                
+                // Construir estructura de carpetas usando el path completo
+                const pathParts = file.path.split('/');
+                this._addToFolderStructure(pathParts, file);
+                
+                console.log(`  ✓ ${file.name} (${file.folder})`);
+            }
+        }
+        
+        // Ordenar la estructura
+        this._sortFolderStructure(this.folderStructure);
+        
+        // Re-renderizar
+        this.render();
+        
+        // Callback
+        if (this.onFilesLoaded) {
+            this.onFilesLoaded(files);
+        }
+    }
+    
+    /**
+     * Limpia todos los archivos y la estructura
+     */
+    clear() {
+        this.files = [];
+        this.folderStructure = {};
+        this.selectedFile = null;
+        this.expandedFolders.clear();
+        this.render();
     }
 }
 
