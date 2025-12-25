@@ -10,30 +10,36 @@
  * 1. Ejecutar el servidor: npm start
  * 2. Abrir en navegador: http://localhost:3000
  * 
- * ESTRUCTURA:
- * ReproductorRol/
- * ├── music/
- * │   ├── Combate/
- * │   │   ├── batalla_epica.mp3
- * │   │   └── tension.mp3
- * │   └── Taberna/
- * │       └── musica_alegre.mp3
- * ├── config.js    <- Este archivo
- * └── server.js    <- Servidor Node.js
+ * TIPOS DE RUTAS SOPORTADAS:
  * 
- * El servidor escaneará automáticamente las carpetas que configures
- * aquí abajo - ¡sin necesidad de crear ningún index.json!
+ * 1. RUTAS RELATIVAS (dentro del proyecto):
+ *    'music/ROL'
+ *    'music/Combate'
+ * 
+ * 2. RUTAS ABSOLUTAS (cualquier carpeta del ordenador):
+ *    Windows:  'C:/Musica/Rol' o 'C:\\Musica\\Rol'
+ *    Linux/Mac: '/home/usuario/Musica/Rol'
+ * 
+ * EJEMPLOS:
+ * folders: [
+ *     'music/ROL',                           // Relativa al proyecto
+ *     'C:/Users/TuNombre/Music/RPG',         // Windows absoluta
+ *     'D:/Mi Colección de Música/Fantasía'  // Con espacios
+ * ]
+ * 
+ * El servidor escaneará automáticamente TODAS las subcarpetas
+ * y archivos de audio en cada ruta configurada.
  */
 
 const MUSIC_CONFIG = {
     // ============================================
     // CARPETAS DE MÚSICA
     // ============================================
-    // Añade las rutas relativas a tus carpetas de música
-    // El servidor escaneará automáticamente los archivos de audio
     
     folders: [
-        'music/ROL',
+        'S:/Musica'
+        // 'C:/Users/TuNombre/Music/RPG',
+        // 'D:/Música/Fantasía',
     ],
     
     // ============================================

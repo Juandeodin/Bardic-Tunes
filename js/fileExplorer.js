@@ -196,19 +196,21 @@ class FileExplorer {
             const expandedClass = isExpanded ? '' : 'collapsed';
             const folderPath = folder._files.length > 0 ? folder._files[0].folder : '';
             
-            // Contar cuántos archivos de esta carpeta están en playlist
-            const filesInPlaylist = folder._files.filter(f => 
-                this.checkInPlaylist && this.checkInPlaylist(f.path)
-            ).length;
-            const allInPlaylist = filesInPlaylist === folder._files.length && folder._files.length > 0;
+            // Contar todos los archivos de música recursivamente
+            const { totalFiles, filesInPlaylist } = this._countFilesRecursive(folder);
+            
+            const allInPlaylist = filesInPlaylist === totalFiles && totalFiles > 0;
             const someInPlaylist = filesInPlaylist > 0 && !allInPlaylist;
+            
+            // Solo mostrar el contador si hay archivos de música
+            const countDisplay = totalFiles > 0 ? `(${filesInPlaylist}/${totalFiles})` : '';
             
             html += `
                 <div class="tree-item tree-folder ${expandedClass}" data-folder-id="${folderId}" data-folder-path="${this._escapeHtml(folderPath)}">
                     <div class="tree-folder-header" data-folder-id="${folderId}">
                         <span class="tree-folder-icon">📁</span>
                         <span class="tree-folder-name">${this._escapeHtml(folder._name)}</span>
-                        <span class="tree-folder-count">(${filesInPlaylist}/${folder._files.length})</span>
+                        <span class="tree-folder-count">${countDisplay}</span>
                         <div class="tree-actions">
                             <button class="btn-tree-action btn-add-folder ${allInPlaylist ? 'disabled' : ''}" 
                                     data-folder-path="${this._escapeHtml(folderPath)}" 
@@ -261,6 +263,28 @@ class FileExplorer {
         }
         
         return html;
+    }
+    
+    /**
+     * Cuenta recursivamente todos los archivos en una carpeta y subcarpetas
+     * @param {Object} folder - Objeto carpeta con estructura _files y _subfolders
+     * @returns {Object} - { totalFiles: number, filesInPlaylist: number }
+     */
+    _countFilesRecursive(folder) {
+        let totalFiles = folder._files.length;
+        let filesInPlaylist = folder._files.filter(f => 
+            this.checkInPlaylist && this.checkInPlaylist(f.path)
+        ).length;
+        
+        // Contar archivos en subcarpetas recursivamente
+        for (const subfolderName in folder._subfolders) {
+            const subfolder = folder._subfolders[subfolderName];
+            const subCount = this._countFilesRecursive(subfolder);
+            totalFiles += subCount.totalFiles;
+            filesInPlaylist += subCount.filesInPlaylist;
+        }
+        
+        return { totalFiles, filesInPlaylist };
     }
     
     /**
