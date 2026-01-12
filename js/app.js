@@ -389,7 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ` : '';
             
             return `
-                <li class="playlist-item ${playingClass}" data-index="${index}" data-path="${track.path}">
+                <li class="playlist-item ${playingClass}" data-index="${index}" data-path="${track.path}" draggable="true">
+                    <span class="playlist-item-drag-handle" title="Arrastra para reordenar">⠿</span>
                     <span class="playlist-item-index">
                         ${isPlaying && player.isPlaying ? playingIcon : (index + 1)}
                     </span>
@@ -402,12 +403,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Añadir event listeners a los items de playlist
         elements.playlistElement.querySelectorAll('.playlist-item').forEach(item => {
             item.addEventListener('click', (e) => {
-                // Ignorar si se hizo click en el botón de quitar
-                if (e.target.classList.contains('btn-playlist-remove')) return;
+                // Ignorar si se hizo click en el botón de quitar o en el handle de arrastre
+                if (e.target.classList.contains('btn-playlist-remove') || 
+                    e.target.classList.contains('playlist-item-drag-handle')) return;
                 
                 const index = parseInt(item.dataset.index);
                 playlist.playTrack(index);
             });
+            
+            // Event listeners para drag & drop
+            setupDragAndDrop(item);
         });
         
         // Botones de quitar de playlist
@@ -418,6 +423,95 @@ document.addEventListener('DOMContentLoaded', () => {
                 playlist.removeTrackByPath(path);
                 fileExplorer.render(); // Actualizar iconos en explorador
             });
+        });
+    }
+    
+    // ============================================
+    // DRAG & DROP PARA REORDENAR PLAYLIST
+    // ============================================
+    
+    let draggedItem = null;
+    let draggedIndex = null;
+    
+    function setupDragAndDrop(item) {
+        item.addEventListener('dragstart', (e) => {
+            draggedItem = item;
+            draggedIndex = parseInt(item.dataset.index);
+            item.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedIndex);
+        });
+        
+        item.addEventListener('dragend', (e) => {
+            item.classList.remove('dragging');
+            // Limpiar todos los indicadores
+            elements.playlistElement.querySelectorAll('.playlist-item').forEach(el => {
+                el.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+            draggedItem = null;
+            draggedIndex = null;
+        });
+        
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (!draggedItem || draggedItem === item) return;
+            
+            e.dataTransfer.dropEffect = 'move';
+            
+            const rect = item.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            
+            // Limpiar clases anteriores
+            elements.playlistElement.querySelectorAll('.playlist-item').forEach(el => {
+                el.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+            
+            // Añadir indicador visual
+            if (e.clientY < midpoint) {
+                item.classList.add('drag-over-top');
+            } else {
+                item.classList.add('drag-over-bottom');
+            }
+        });
+        
+        item.addEventListener('dragleave', (e) => {
+            // Verificar que realmente salimos del elemento
+            if (!item.contains(e.relatedTarget)) {
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
+            }
+        });
+        
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (!draggedItem || draggedItem === item) return;
+            
+            const dropIndex = parseInt(item.dataset.index);
+            const rect = item.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            
+            let targetIndex;
+            if (e.clientY < midpoint) {
+                // Soltar antes del item
+                targetIndex = dropIndex;
+            } else {
+                // Soltar después del item
+                targetIndex = dropIndex + 1;
+            }
+            
+            // Ajustar índice si estamos moviendo hacia abajo
+            if (draggedIndex < targetIndex) {
+                targetIndex--;
+            }
+            
+            // Mover la pista
+            if (draggedIndex !== targetIndex) {
+                playlist.moveTrack(draggedIndex, targetIndex);
+            }
+            
+            // Limpiar indicadores
+            item.classList.remove('drag-over-top', 'drag-over-bottom');
         });
     }
     
