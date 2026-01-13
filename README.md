@@ -159,12 +159,6 @@ Interfaz inspirada en la fantasía medieval oscura:
 
 ---
 
-## 📝 Documentación
-
-Para información técnica detallada sobre la arquitectura, clases y funcionalidades, consulta [CONTEXT.md](CONTEXT.md).
-
----
-
 ## 🤝 Contribuciones
 
 Las contribuciones son bienvenidas. Por favor:
