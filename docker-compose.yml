@@ -1,0 +1,33 @@
+# =====================================================
+# Bardic Tunes - Docker Compose para CasaOS
+# =====================================================
+# 
+# Importar en CasaOS desde: Configuración → Instalar App → Importar
+#
+# Antes de arrancar, edita el volumen "- /ruta/a/tu/musica:/app/music"
+# con la ruta real donde tienes los archivos de música en CasaOS.
+# =====================================================
+
+services:
+  bardic-tunes:
+    image: bardic-tunes:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bardic-tunes
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Monta tu carpeta de música del servidor en /app/music dentro del contenedor
+      # Cambia /DATA/Media/Music por la ruta real de tu música en CasaOS
+      - /DATA/Media/Music:/app/music:ro
+    environment:
+      - NODE_ENV=production
+    # Etiquetas para CasaOS (icono y nombre en el panel)
+    labels:
+      - "casaos.name=Bardic Tunes"
+      - "casaos.icon=https://raw.githubusercontent.com/Juandeodin/Bardic-Tunes/main/README.md"
+      - "casaos.description=Reproductor de música para partidas de rol"
+      - "casaos.port=3000"
+      - "casaos.category=Entertainment"
