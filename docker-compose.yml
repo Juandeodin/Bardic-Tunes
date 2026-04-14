@@ -1,33 +1,48 @@
-# =====================================================
-# Bardic Tunes - Docker Compose para CasaOS
-# =====================================================
-# 
-# Importar en CasaOS desde: Configuración → Instalar App → Importar
-#
-# Antes de arrancar, edita el volumen "- /ruta/a/tu/musica:/app/music"
-# con la ruta real donde tienes los archivos de música en CasaOS.
-# =====================================================
+name: bardic-tunes
 
 services:
   bardic-tunes:
-    image: bardic-tunes:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/juandeodin/bardic-tunes:latest
     container_name: bardic-tunes
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - target: 3000
+        published: "3000"
+        protocol: tcp
     volumes:
-      # Monta tu carpeta de música del servidor en /app/music dentro del contenedor
-      # Cambia /DATA/Media/Music por la ruta real de tu música en CasaOS
-      - /DATA/Media/Music:/app/music:ro
+      - type: bind
+        # ⚠️ Cambia esta ruta por la carpeta de música real en tu CasaOS
+        source: /DATA/Media/Music
+        target: /app/music
+        read_only: true
     environment:
       - NODE_ENV=production
-    # Etiquetas para CasaOS (icono y nombre en el panel)
-    labels:
-      - "casaos.name=Bardic Tunes"
-      - "casaos.icon=https://raw.githubusercontent.com/Juandeodin/Bardic-Tunes/main/README.md"
-      - "casaos.description=Reproductor de música para partidas de rol"
-      - "casaos.port=3000"
-      - "casaos.category=Entertainment"
+    x-casaos:
+      ports:
+        - container: "3000"
+          description:
+            en_us: WebUI Port
+      volumes:
+        - container: /app/music
+          description:
+            en_us: "Music folder — change source path to your music directory"
+
+# Metadatos de CasaOS (panel, icono, WebUI)
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: bardic-tunes
+  description:
+    en_us: Web music player for tabletop RPG sessions
+    es_es: Reproductor de música web para partidas de rol
+  tagline:
+    en_us: Fantasy music player for tabletop RPG
+    es_es: Reproductor musical de fantasía para rol
+  icon: https://cdn.jsdelivr.net/gh/Juandeodin/Bardic-Tunes@main/music/favicon.ico
+  title:
+    en_us: Bardic Tunes
+  category: Entertainment
+  port_map: "3000"
+  scheme: http
+  index: /
