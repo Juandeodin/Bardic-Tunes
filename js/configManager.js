@@ -38,15 +38,40 @@ class ConfigManager {
     }
     
     /**
-     * Carga todas las carpetas configuradas en config.js
+     * Obtiene las carpetas del servidor (variable de entorno MUSIC_FOLDERS).
+     * Si no hay ninguna, devuelve array vacío.
+     * @returns {Promise<string[]>}
+     */
+    async getServerFolders() {
+        try {
+            const res = await fetch('/api/server-config');
+            if (!res.ok) return [];
+            const data = await res.json();
+            return Array.isArray(data.folders) ? data.folders : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    /**
+     * Carga todas las carpetas configuradas.
+     * Prioridad: variable de entorno MUSIC_FOLDERS (Docker) > config.js
      * @returns {Promise<Array>} Array con todos los archivos cargados
      */
     async loadAllFolders() {
-        const folders = this.getConfiguredFolders();
+        // Intentar obtener carpetas desde la variable de entorno del servidor
+        const serverFolders = await this.getServerFolders();
+        const folders = serverFolders.length > 0
+            ? serverFolders
+            : this.getConfiguredFolders();
         
         if (folders.length === 0) {
-            console.log('📁 No hay carpetas configuradas en config.js');
+            console.log('📁 No hay carpetas configuradas (ni en MUSIC_FOLDERS ni en config.js)');
             return [];
+        }
+        
+        if (serverFolders.length > 0) {
+            console.log(`🐳 Usando carpetas de variable de entorno MUSIC_FOLDERS`);
         }
         
         this.isLoading = true;

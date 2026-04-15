@@ -38,6 +38,26 @@ app.use('/absolute-music', (req, res, next) => {
 });
 
 /**
+ * API: Obtener configuración del servidor (carpetas desde variables de entorno)
+ * GET /api/server-config
+ * Lee MUSIC_FOLDERS (separadas por coma) y las devuelve al cliente
+ */
+app.get('/api/server-config', (req, res) => {
+    const musicFoldersEnv = process.env.MUSIC_FOLDERS;
+    
+    if (!musicFoldersEnv) {
+        return res.json({ folders: [] });
+    }
+    
+    const folders = musicFoldersEnv
+        .split(',')
+        .map(f => f.trim())
+        .filter(f => f.length > 0);
+    
+    res.json({ folders });
+});
+
+/**
  * API: Obtener lista de archivos de una carpeta (recursivo)
  * GET /api/files?folder=music/ROL
  * Devuelve todos los archivos de la carpeta y sus subcarpetas

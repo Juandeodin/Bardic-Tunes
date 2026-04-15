@@ -17,6 +17,9 @@ services:
         read_only: true
     environment:
       - NODE_ENV=production
+      # Carpetas de música separadas por coma. Deben coincidir con los volúmenes montados abajo.
+      # Ejemplo con varias carpetas: /app/music/rpg,/app/music/ambient
+      - MUSIC_FOLDERS=/app/music
     x-casaos:
       ports:
         - container: "3000"
