@@ -22,10 +22,5 @@ RUN mkdir -p /app/music
 # Exponer el puerto del servidor
 EXPOSE 3000
 
-# Usuario no-root por seguridad
-RUN addgroup -S bardic && adduser -S bardic -G bardic
-RUN chown -R bardic:bardic /app
-USER bardic
-
 # Arrancar el servidor
 CMD ["node", "server.js"]
