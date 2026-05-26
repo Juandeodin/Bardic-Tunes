@@ -1,0 +1,14 @@
+[
+  {
+    "id": "mpmjb8xkuolfepp5zgp",
+    "username": "juan",
+    "passwordHash": "$2a$10$BJcf0if8Ut/WqL2gh9GozexHDNe5Qi4ACfq43CCD8l50uemz49atm",
+    "createdAt": 1779793861880
+  },
+  {
+    "id": "mpmjh5cxyv2jfrrht6p",
+    "username": "testuser",
+    "passwordHash": "$2a$10$5lMSQEb1FNV1seIAjrABXucWBMz6tUVZBndGilRY6zTcRLAkS1dL2",
+    "createdAt": 1779794137185
+  }
+]

@@ -3,6 +3,9 @@
    Tema: Fantasía Oscura Medieval
    ============================================ */
 
+/* Utilitario global */
+.hidden { display: none !important; }
+
 /* Variables CSS */
 :root {
     --bg-darkest: #0d0d0f;
@@ -73,6 +76,7 @@ body {
     padding: var(--spacing-sm) var(--spacing-md);
     border-bottom: 1px solid var(--border-color);
     background: linear-gradient(180deg, rgba(107,76,154,0.08) 0%, transparent 100%);
+    position: relative;
 }
 
 .app-title {
@@ -1269,3 +1273,148 @@ body {
 }
 .tag-picker-input:focus { border-color: rgba(184,142,92,0.6); }
 .tag-picker-input::placeholder { color: rgba(255,255,255,0.3); }
+
+/* ============================================
+   LOGIN SCREEN
+   ============================================ */
+
+.login-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: radial-gradient(ellipse at center, #1a1410 0%, #0d0a06 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+}
+
+.login-card {
+    background: rgba(20,16,10,0.97);
+    border: 1px solid rgba(184,142,92,0.3);
+    border-radius: 12px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(184,142,92,0.05);
+}
+
+.login-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+}
+
+.login-title {
+    font-family: var(--font-title);
+    font-size: 1.8rem;
+    color: var(--gold);
+    margin: 0 0 4px;
+    text-shadow: 0 0 20px var(--gold-glow);
+    letter-spacing: 0.08em;
+}
+
+.login-subtitle {
+    font-size: 0.9rem;
+    color: rgba(168,165,160,0.65);
+    margin: 0 0 32px;
+    font-style: italic;
+}
+
+.login-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 10px 14px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.login-input:focus { border-color: rgba(184,142,92,0.6); }
+.login-input::placeholder { color: rgba(255,255,255,0.22); }
+
+.btn-login {
+    display: block;
+    width: 100%;
+    padding: 11px;
+    background: linear-gradient(135deg, #8b6914 0%, #c9a227 50%, #8b6914 100%);
+    border: 1px solid rgba(201,162,39,0.4);
+    border-radius: 6px;
+    color: #1a1208;
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: opacity 0.2s, transform 0.1s;
+}
+.btn-login:hover  { opacity: 0.9; transform: translateY(-1px); }
+.btn-login:active { transform: translateY(0); }
+.btn-login:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.btn-login-link {
+    background: none;
+    border: none;
+    color: rgba(184,142,92,0.65);
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    cursor: pointer;
+    margin-top: 14px;
+    display: block;
+    width: 100%;
+    text-align: center;
+    transition: color 0.2s;
+}
+.btn-login-link:hover { color: rgba(201,162,39,0.9); }
+
+.login-error {
+    color: #e07070;
+    font-size: 0.88rem;
+    margin-top: 14px;
+    padding: 8px 12px;
+    background: rgba(180,60,60,0.12);
+    border: 1px solid rgba(180,60,60,0.3);
+    border-radius: 6px;
+    text-align: left;
+}
+
+/* Usuario actual en el header */
+.header-user {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.current-username {
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: rgba(201,162,39,0.75);
+    font-style: italic;
+}
+
+.btn-logout {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: rgba(168,165,160,0.55);
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: border-color 0.2s, color 0.2s;
+}
+.btn-logout:hover {
+    border-color: rgba(255,255,255,0.25);
+    color: rgba(168,165,160,0.9);
+}

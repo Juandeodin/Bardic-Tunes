@@ -15,11 +15,17 @@ services:
         source: /DATA/Media/Music
         target: /app/music
         read_only: true
+      - type: volume
+        source: bardic_data
+        target: /app/data
     environment:
       - NODE_ENV=production
       # Carpetas de música separadas por coma. Deben coincidir con los volúmenes montados abajo.
       # Ejemplo con varias carpetas: /app/music/rpg,/app/music/ambient
       - MUSIC_FOLDERS=/app/music
+      # ⚠️ IMPORTANTE: Cambia esto por una cadena aleatoria y secreta (mín. 32 caracteres)
+      # Si no lo configuras, los tokens de sesión expirarán al reiniciar el contenedor
+      - JWT_SECRET=CAMBIA_ESTO_POR_UNA_CLAVE_SECRETA_LARGA_Y_ALEATORIA
     x-casaos:
       ports:
         - container: "3000"
@@ -29,6 +35,9 @@ services:
         - container: /app/music
           description:
             en_us: "Music folder — change source path to your music directory"
+        - container: /app/data
+          description:
+            en_us: "User data — accounts, campaigns and tags (must be a persistent volume)"
 
 # Metadatos de CasaOS (panel, icono, WebUI)
 x-casaos:
@@ -48,4 +57,8 @@ x-casaos:
   category: Entertainment
   port_map: "3000"
   scheme: http
+
+volumes:
+  bardic_data:
+    driver: local
   index: /

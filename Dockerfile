@@ -16,8 +16,8 @@ RUN npm install --omit=dev
 # Copiar el resto del código fuente
 COPY . .
 
-# Crear la carpeta de música por si no existe
-RUN mkdir -p /app/music
+# Crear la carpeta de música y los directorios de datos de usuario
+RUN mkdir -p /app/music /app/data /app/data/campaigns
 
 # Exponer el puerto del servidor
 EXPOSE 3000

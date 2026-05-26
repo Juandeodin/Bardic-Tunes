@@ -4,17 +4,79 @@
  */
 
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const fs      = require('fs');
+const path    = require('path');
+const bcrypt  = require('bcryptjs');
+const jwt     = require('jsonwebtoken');
+const crypto  = require('crypto');
 
-const app = express();
+const app  = express();
 const PORT = 3000;
+
+// JWT secret — configura JWT_SECRET en variables de entorno en producción
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+    const s = crypto.randomBytes(32).toString('hex');
+    console.warn('\n⚠️  JWT_SECRET no configurado. Generando secreto temporal.');
+    console.warn('   Los tokens expirarán al reiniciar el servidor.');
+    console.warn('   Configura la variable de entorno JWT_SECRET para persistencia.\n');
+    return s;
+})();
+
+// Directorios de datos de usuario (persistidos con volumen Docker)
+const DATA_DIR      = path.join(__dirname, 'data');
+const CAMPAIGNS_DIR = path.join(DATA_DIR, 'campaigns');
+const USERS_FILE    = path.join(DATA_DIR, 'users.json');
+
+if (!fs.existsSync(DATA_DIR))      fs.mkdirSync(DATA_DIR,      { recursive: true });
+if (!fs.existsSync(CAMPAIGNS_DIR)) fs.mkdirSync(CAMPAIGNS_DIR, { recursive: true });
+
+// ============================================
+// HELPERS: DATOS DE USUARIO
+// ============================================
+
+function readUsers() {
+    if (!fs.existsSync(USERS_FILE)) return [];
+    try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); }
+    catch { return []; }
+}
+
+function writeUsers(users) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+function readCampaigns(userId) {
+    const file = path.join(CAMPAIGNS_DIR, userId + '.json');
+    if (!fs.existsSync(file)) return { campaigns: [], activeCampaignId: null };
+    try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+    catch { return { campaigns: [], activeCampaignId: null }; }
+}
+
+function writeCampaigns(userId, data) {
+    const file = path.join(CAMPAIGNS_DIR, userId + '.json');
+    fs.mkdirSync(CAMPAIGNS_DIR, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(data));
+}
+
+function verifyToken(req) {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    const token = authHeader.slice(7);
+    try { return jwt.verify(token, JWT_SECRET); }
+    catch { return null; }
+}
 
 // Formatos de audio soportados
 const SUPPORTED_FORMATS = ['.mp3', '.ogg', '.wav', '.flac', '.m4a', '.aac', '.webm'];
 
 // Mapa de carpetas absolutas configuradas (se cargan desde config.js)
 const absoluteFoldersMap = new Map();
+
+// Bloquear acceso directo a datos de usuario (ANTES que express.static)
+app.use('/data', (_req, res) => res.status(403).json({ error: 'Forbidden' }));
+
+// Body parser para rutas API
+app.use(express.json({ limit: '10mb' }));
 
 // Servir archivos estáticos (HTML, CSS, JS, música del proyecto)
 app.use(express.static('.'));
@@ -35,6 +97,97 @@ app.use('/absolute-music', (req, res, next) => {
         }
     }
     next();
+});
+
+/**
+ * AUTH: Registro de nuevo usuario
+ * POST /api/auth/register
+ */
+app.post('/api/auth/register', async (req, res) => {
+    const { username, password } = req.body || {};
+    if (!username || !password)
+        return res.status(400).json({ error: 'Nombre de usuario y contraseña requeridos' });
+
+    const trimName = username.trim();
+    if (trimName.length < 3 || trimName.length > 30)
+        return res.status(400).json({ error: 'El nombre debe tener entre 3 y 30 caracteres' });
+    if (!/^[\w\s\-áéíóúàèìòùñüÁÉÍÓÚÀÈÌÒÙÑÜ]+$/u.test(trimName))
+        return res.status(400).json({ error: 'El nombre contiene caracteres no permitidos' });
+    if (password.length < 6)
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+
+    const users = readUsers();
+    if (users.find(u => u.username.toLowerCase() === trimName.toLowerCase()))
+        return res.status(409).json({ error: 'Ese nombre de aventurero ya existe' });
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const newUser = {
+        id:           Date.now().toString(36) + Math.random().toString(36).slice(2),
+        username:     trimName,
+        passwordHash,
+        createdAt:    Date.now()
+    };
+    users.push(newUser);
+    writeUsers(users);
+
+    const token = jwt.sign(
+        { userId: newUser.id, username: newUser.username },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+    res.json({ token, username: newUser.username });
+});
+
+/**
+ * AUTH: Inicio de sesión
+ * POST /api/auth/login
+ */
+app.post('/api/auth/login', async (req, res) => {
+    const { username, password } = req.body || {};
+    if (!username || !password)
+        return res.status(400).json({ error: 'Faltan credenciales' });
+
+    const users = readUsers();
+    const user  = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+    if (!user)
+        return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+
+    const match = await bcrypt.compare(password, user.passwordHash);
+    if (!match)
+        return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+
+    const token = jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+    res.json({ token, username: user.username });
+});
+
+/**
+ * DATOS: Obtener partidas del usuario autenticado
+ * GET /api/campaigns
+ */
+app.get('/api/campaigns', (req, res) => {
+    const payload = verifyToken(req);
+    if (!payload) return res.status(401).json({ error: 'No autenticado' });
+    const safeId = payload.userId.replace(/[^a-z0-9_\-]/gi, '');
+    res.json(readCampaigns(safeId));
+});
+
+/**
+ * DATOS: Guardar partidas del usuario autenticado
+ * PUT /api/campaigns
+ */
+app.put('/api/campaigns', (req, res) => {
+    const payload = verifyToken(req);
+    if (!payload) return res.status(401).json({ error: 'No autenticado' });
+    const { campaigns, activeCampaignId } = req.body || {};
+    if (!Array.isArray(campaigns))
+        return res.status(400).json({ error: 'Datos inválidos' });
+    const safeId = payload.userId.replace(/[^a-z0-9_\-]/gi, '');
+    writeCampaigns(safeId, { campaigns, activeCampaignId: activeCampaignId || null });
+    res.json({ ok: true });
 });
 
 /**

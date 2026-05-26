@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const playlist       = new Playlist();
     const campaignMgr    = new CampaignManager();
     const configManager  = new ConfigManager();
+    const userMgr        = new UserManager();
     let   fileExplorer   = null;
     let   activeTagFilters = new Set(); // IDs de tags activos como filtro en la biblioteca
 
@@ -953,23 +954,152 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================
-    // INICIALIZACIÓN
+    // AUTH: Pantalla de login
     // ============================================
 
-    var savedVol = localStorage.getItem('bardicTunes_volume');
-    if (savedVol) { el.volumeSlider.value = parseFloat(savedVol) * 100; updateVolumeIcon(parseFloat(savedVol)); }
+    function showLoginScreen() {
+        document.getElementById('login-screen').classList.remove('hidden');
+        document.querySelector('.app-wrapper').classList.add('hidden');
+    }
 
-    var savedMode = localStorage.getItem('bardicTunes_playbackMode');
-    if (savedMode) { el.playbackMode.value = savedMode; playlist.setMode(savedMode); }
+    function hideLoginScreen() {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.querySelector('.app-wrapper').classList.remove('hidden');
+    }
 
-    var savedLoop = localStorage.getItem('bardicTunes_loop');
-    if (savedLoop === 'true') el.btnLoop.classList.add('active');
+    function showLoginError(msg) {
+        var errEl = document.getElementById('login-error');
+        errEl.textContent = msg;
+        errEl.classList.remove('hidden');
+    }
 
-    initFileExplorer();
-    renderCampaignsSidebar();
-    renderLibrary();
-    renderQueue();
+    function hideLoginError() {
+        document.getElementById('login-error').classList.add('hidden');
+    }
 
-    console.log('%c🎶 Bardic Tunes v2 — Reproductor de Música para Rol', 'font-size:16px;font-weight:bold;color:#c9a227;');
-    console.log('%cQue la música acompañe tus aventuras!', 'font-size:13px;font-style:italic;color:#a8a5a0;');
+    function initLoginScreen() {
+        var loginSection    = document.getElementById('login-form-section');
+        var registerSection = document.getElementById('register-form-section');
+
+        // Toggle entre login y registro
+        document.getElementById('show-register').addEventListener('click', function() {
+            loginSection.classList.add('hidden');
+            registerSection.classList.remove('hidden');
+            hideLoginError();
+        });
+        document.getElementById('show-login').addEventListener('click', function() {
+            registerSection.classList.add('hidden');
+            loginSection.classList.remove('hidden');
+            hideLoginError();
+        });
+
+        // Login
+        var btnLogin = document.getElementById('btn-login');
+        btnLogin.addEventListener('click', async function() {
+            var username = document.getElementById('login-username').value.trim();
+            var password = document.getElementById('login-password').value;
+            if (!username || !password) return showLoginError('Introduce tu nombre y contraseña.');
+            hideLoginError();
+            btnLogin.disabled = true;
+            btnLogin.textContent = 'Entrando...';
+            try {
+                await userMgr.login(username, password);
+                campaignMgr.setToken(userMgr.getToken());
+                await campaignMgr.load();
+                hideLoginScreen();
+                startApp();
+            } catch (err) {
+                showLoginError(err.message || 'Error al iniciar sesión.');
+            } finally {
+                btnLogin.disabled = false;
+                btnLogin.textContent = 'Entrar al Reino';
+            }
+        });
+        ['login-username', 'login-password'].forEach(function(id) {
+            document.getElementById(id).addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') document.getElementById('btn-login').click();
+            });
+        });
+
+        // Registro
+        var btnRegister = document.getElementById('btn-register');
+        btnRegister.addEventListener('click', async function() {
+            var username  = document.getElementById('reg-username').value.trim();
+            var password  = document.getElementById('reg-password').value;
+            var password2 = document.getElementById('reg-password2').value;
+            if (!username || !password) return showLoginError('Rellena todos los campos.');
+            if (password !== password2)  return showLoginError('Las contraseñas no coinciden.');
+            hideLoginError();
+            btnRegister.disabled = true;
+            btnRegister.textContent = 'Creando...';
+            try {
+                await userMgr.register(username, password);
+                campaignMgr.setToken(userMgr.getToken());
+                await campaignMgr.load();
+                hideLoginScreen();
+                startApp();
+            } catch (err) {
+                showLoginError(err.message || 'Error al registrarse.');
+            } finally {
+                btnRegister.disabled = false;
+                btnRegister.textContent = 'Crear Personaje';
+            }
+        });
+        ['reg-username', 'reg-password', 'reg-password2'].forEach(function(id) {
+            document.getElementById(id).addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') document.getElementById('btn-register').click();
+            });
+        });
+    }
+
+    function startApp() {
+        // Mostrar nombre del usuario en el header
+        var usernameDisplay = document.getElementById('current-username');
+        if (usernameDisplay) usernameDisplay.textContent = userMgr.getUsername();
+
+        // Restaurar preferencias de reproducción
+        var savedVol = localStorage.getItem('bardicTunes_volume');
+        if (savedVol) { el.volumeSlider.value = parseFloat(savedVol) * 100; updateVolumeIcon(parseFloat(savedVol)); }
+
+        var savedMode = localStorage.getItem('bardicTunes_playbackMode');
+        if (savedMode) { el.playbackMode.value = savedMode; playlist.setMode(savedMode); }
+
+        var savedLoop = localStorage.getItem('bardicTunes_loop');
+        if (savedLoop === 'true') el.btnLoop.classList.add('active');
+
+        initFileExplorer();
+        renderCampaignsSidebar();
+        renderLibrary();
+        renderQueue();
+
+        console.log('%c🎶 Bardic Tunes v2 — Reproductor de Música para Rol', 'font-size:16px;font-weight:bold;color:#c9a227;');
+        console.log('%cQue la música acompañe tus aventuras!', 'font-size:13px;font-style:italic;color:#a8a5a0;');
+    }
+
+    // Botón de logout
+    var btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', function() {
+            if (confirm('¿Cerrar sesión de ' + userMgr.getUsername() + '?')) userMgr.logout();
+        });
+    }
+
+    // ============================================
+    // ARRANQUE
+    // ============================================
+
+    initLoginScreen();
+
+    if (userMgr.isLoggedIn()) {
+        campaignMgr.setToken(userMgr.getToken());
+        campaignMgr.load()
+            .then(function() { hideLoginScreen(); startApp(); })
+            .catch(function() {
+                // Token expirado o inválido: borrar sesión y pedir login de nuevo
+                userMgr.logout();
+            });
+    } else {
+        showLoginScreen();
+    }
+
 });

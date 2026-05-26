@@ -4,43 +4,52 @@
  */
 class CampaignManager {
     constructor() {
-        this.campaigns = [];
+        this.campaigns        = [];
         this.activeCampaignId = null;
-        this.load();
+        this.token            = null;
+        // load() se llama explícitamente desde app.js tras el login
+    }
+
+    setToken(token) {
+        this.token = token;
     }
 
     // ============================================
     // PERSISTENCIA
     // ============================================
 
-    load() {
+    async load() {
         try {
-            const data = localStorage.getItem('bardic-campaigns');
-            if (data) {
-                const parsed = JSON.parse(data);
-                this.campaigns = parsed.campaigns || [];
-                this.activeCampaignId = parsed.activeCampaignId || null;
-                // Validar que la campaña activa existe
-                if (this.activeCampaignId && !this.getCampaignById(this.activeCampaignId)) {
-                    this.activeCampaignId = this.campaigns.length > 0 ? this.campaigns[0].id : null;
-                }
+            const res = await fetch('/api/campaigns', {
+                headers: { 'Authorization': 'Bearer ' + this.token }
+            });
+            if (!res.ok) throw new Error('No autenticado (' + res.status + ')');
+            const data = await res.json();
+            this.campaigns        = data.campaigns || [];
+            this.activeCampaignId = data.activeCampaignId || null;
+            // Validar que la campaña activa existe
+            if (this.activeCampaignId && !this.getCampaignById(this.activeCampaignId)) {
+                this.activeCampaignId = this.campaigns.length > 0 ? this.campaigns[0].id : null;
             }
         } catch (e) {
             console.error('Error cargando partidas:', e);
-            this.campaigns = [];
-            this.activeCampaignId = null;
+            throw e; // relanzar para que app.js detecte fallos de auth
         }
     }
 
     save() {
-        try {
-            localStorage.setItem('bardic-campaigns', JSON.stringify({
-                campaigns: this.campaigns,
+        // Fire-and-forget: guarda en segundo plano sin bloquear la UI
+        fetch('/api/campaigns', {
+            method:  'PUT',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': 'Bearer ' + this.token
+            },
+            body: JSON.stringify({
+                campaigns:        this.campaigns,
                 activeCampaignId: this.activeCampaignId
-            }));
-        } catch (e) {
-            console.error('Error guardando partidas:', e);
-        }
+            })
+        }).catch(e => console.error('Error guardando partidas:', e));
     }
 
     // ============================================
