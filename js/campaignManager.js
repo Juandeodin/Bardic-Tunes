@@ -99,6 +99,22 @@ class CampaignManager {
         this.save();
     }
 
+    /**
+     * Reordena una partida moviéndola a una nueva posición en la lista.
+     * @param {string} id      - id de la partida a mover
+     * @param {number} toIndex - posición destino (0-based) en el array
+     */
+    reorderCampaign(id, toIndex) {
+        const fromIndex = this.campaigns.findIndex(c => c.id === id);
+        if (fromIndex === -1) return;
+        // Acotar el índice destino al rango válido
+        toIndex = Math.max(0, Math.min(toIndex, this.campaigns.length - 1));
+        if (fromIndex === toIndex) return;
+        const [campaign] = this.campaigns.splice(fromIndex, 1);
+        this.campaigns.splice(toIndex, 0, campaign);
+        this.save();
+    }
+
     setActiveCampaign(id) {
         if (!this.getCampaignById(id)) return;
         this.activeCampaignId = id;
@@ -152,6 +168,24 @@ class CampaignManager {
 
         if (added > 0) this.save();
         return added;
+    }
+
+    /**
+     * Reordena una canción dentro de una partida moviéndola a una nueva posición.
+     * @param {string} campaignId
+     * @param {string} path    - path de la canción a mover
+     * @param {number} toIndex - posición destino (0-based) en el array de tracks
+     */
+    reorderTrack(campaignId, path, toIndex) {
+        const campaign = this.getCampaignById(campaignId);
+        if (!campaign) return;
+        const fromIndex = campaign.tracks.findIndex(t => t.path === path);
+        if (fromIndex === -1) return;
+        toIndex = Math.max(0, Math.min(toIndex, campaign.tracks.length - 1));
+        if (fromIndex === toIndex) return;
+        const [track] = campaign.tracks.splice(fromIndex, 1);
+        campaign.tracks.splice(toIndex, 0, track);
+        this.save();
     }
 
     removeTrack(campaignId, path) {

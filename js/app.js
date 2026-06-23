@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         el.campaignsList.innerHTML = campaigns.map(c => {
             const isActive = c.id === activeId;
-            return '<li class="campaign-item ' + (isActive ? 'active' : '') + '" data-id="' + c.id + '">' +
+            return '<li class="campaign-item ' + (isActive ? 'active' : '') + '" data-id="' + c.id + '" draggable="true">' +
                 '<div class="campaign-item-inner">' +
                 '<span class="campaign-item-name" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</span>' +
                 '<div class="campaign-item-actions">' +
@@ -239,6 +239,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        // Reordenar partidas arrastrando
+        let draggedId = null;
+        el.campaignsList.querySelectorAll('.campaign-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedId = item.dataset.id;
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+                el.campaignsList.querySelectorAll('.campaign-item').forEach(i =>
+                    i.classList.remove('drag-over-top', 'drag-over-bottom'));
+                draggedId = null;
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (item.dataset.id === draggedId) return;
+                const rect = item.getBoundingClientRect();
+                const after = e.clientY > rect.top + rect.height / 2;
+                item.classList.toggle('drag-over-top', !after);
+                item.classList.toggle('drag-over-bottom', after);
+            });
+
+            item.addEventListener('dragleave', () => {
+                item.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (!draggedId || item.dataset.id === draggedId) return;
+                const rect = item.getBoundingClientRect();
+                const after = e.clientY > rect.top + rect.height / 2;
+                const list = campaignMgr.getCampaigns();
+                let toIndex = list.findIndex(c => c.id === item.dataset.id);
+                if (after) toIndex++;
+                // Compensar el hueco que deja el elemento arrastrado si va por delante
+                const fromIndex = list.findIndex(c => c.id === draggedId);
+                if (fromIndex < toIndex) toIndex--;
+                campaignMgr.reorderCampaign(draggedId, toIndex);
+                renderCampaignsSidebar();
+            });
+        });
     }
 
     function switchCampaign(id) {
@@ -257,6 +303,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function startRename(id) {
         const item = el.campaignsList.querySelector('[data-id="' + id + '"] .campaign-item-name');
         if (!item) return;
+        // Desactivar el arrastre mientras se edita para no interferir con la selección de texto
+        const li = item.closest('.campaign-item');
+        if (li) li.draggable = false;
         item.contentEditable = 'true';
         item.focus();
         const range = document.createRange();
@@ -445,19 +494,62 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // Drag desde biblioteca hacia cola
+        // Reordenar canciones solo tiene sentido con la lista completa (sin filtro)
+        var canReorder = !el.searchInput.value.trim() && activeTagFilters.size === 0;
+        var draggedPath = null;
+
+        // Drag desde biblioteca hacia cola (y, sin filtro, para reordenar dentro de la partida)
         tbody.querySelectorAll('.song-row').forEach(function(row) {
             row.addEventListener('dragstart', function(e) {
+                draggedPath = row.dataset.path;
                 e.dataTransfer.setData('application/bardic-track', row.dataset.path);
-                e.dataTransfer.effectAllowed = 'copy';
+                // 'move' si reordenamos dentro de la biblioteca; la cola lo trata como copia igualmente
+                e.dataTransfer.effectAllowed = canReorder ? 'copyMove' : 'copy';
                 row.classList.add('dragging-row');
             });
-            row.addEventListener('dragend', function() { row.classList.remove('dragging-row'); });
+            row.addEventListener('dragend', function() {
+                row.classList.remove('dragging-row');
+                tbody.querySelectorAll('.song-row').forEach(function(r) {
+                    r.classList.remove('drag-over-top', 'drag-over-bottom');
+                });
+                draggedPath = null;
+            });
 
             // Doble clic → añadir y reproducir
             row.addEventListener('dblclick', function(e) {
                 if (e.target.closest('.description-cell') || e.target.closest('.song-actions')) return;
                 addTrackToQueueAndPlay(row.dataset.path);
+            });
+
+            if (!canReorder) return;
+
+            row.addEventListener('dragover', function(e) {
+                if (!draggedPath || row.dataset.path === draggedPath) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                var rect = row.getBoundingClientRect();
+                var after = e.clientY > rect.top + rect.height / 2;
+                row.classList.toggle('drag-over-top', !after);
+                row.classList.toggle('drag-over-bottom', after);
+            });
+
+            row.addEventListener('dragleave', function() {
+                row.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+
+            row.addEventListener('drop', function(e) {
+                if (!draggedPath || row.dataset.path === draggedPath) return;
+                e.preventDefault();
+                e.stopPropagation();
+                var rect = row.getBoundingClientRect();
+                var after = e.clientY > rect.top + rect.height / 2;
+                var allTracks = campaign.tracks;
+                var toIndex   = allTracks.findIndex(function(t) { return t.path === row.dataset.path; });
+                if (after) toIndex++;
+                var fromIndex = allTracks.findIndex(function(t) { return t.path === draggedPath; });
+                if (fromIndex < toIndex) toIndex--;
+                campaignMgr.reorderTrack(campaign.id, draggedPath, toIndex);
+                renderLibrary();
             });
         });
 

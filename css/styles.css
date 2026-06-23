@@ -182,6 +182,25 @@ body {
 
 .campaign-item:hover { background: var(--bg-light); }
 
+.campaign-item.dragging {
+    opacity: 0.4;
+}
+
+.campaign-item.drag-over-top::before,
+.campaign-item.drag-over-bottom::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--gold);
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.campaign-item.drag-over-top::before { top: -1px; }
+.campaign-item.drag-over-bottom::after { bottom: -1px; }
+
 .campaign-item.active {
     background: rgba(201, 162, 39, 0.15);
     border-left: 3px solid var(--gold);
@@ -374,6 +393,9 @@ body {
 .song-row.in-queue:hover { background: rgba(107, 76, 154, 0.2); }
 .song-row.playing-row { background: rgba(201, 162, 39, 0.1); border-left: 3px solid var(--gold); }
 .song-row.dragging-row { opacity: 0.4; }
+/* Indicador de posición al reordenar canciones (box-shadow funciona mejor que ::before en filas) */
+.song-row.drag-over-top td    { box-shadow: inset 0 2px 0 var(--gold); }
+.song-row.drag-over-bottom td { box-shadow: inset 0 -2px 0 var(--gold); }
 
 .song-row td {
     padding: var(--spacing-xs) var(--spacing-md);
