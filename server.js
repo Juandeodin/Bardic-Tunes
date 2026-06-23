@@ -182,11 +182,15 @@ app.get('/api/campaigns', (req, res) => {
 app.put('/api/campaigns', (req, res) => {
     const payload = verifyToken(req);
     if (!payload) return res.status(401).json({ error: 'No autenticado' });
-    const { campaigns, activeCampaignId } = req.body || {};
+    const { campaigns, activeCampaignId, tutorialSeen } = req.body || {};
     if (!Array.isArray(campaigns))
         return res.status(400).json({ error: 'Datos inválidos' });
     const safeId = payload.userId.replace(/[^a-z0-9_\-]/gi, '');
-    writeCampaigns(safeId, { campaigns, activeCampaignId: activeCampaignId || null });
+    writeCampaigns(safeId, {
+        campaigns,
+        activeCampaignId: activeCampaignId || null,
+        tutorialSeen: !!tutorialSeen
+    });
     res.json({ ok: true });
 });
 

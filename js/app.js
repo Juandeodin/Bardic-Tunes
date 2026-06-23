@@ -1376,8 +1376,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('%c🎶 Bardic Tunes v2 — Reproductor de Música para Rol', 'font-size:16px;font-weight:bold;color:#c9a227;');
         console.log('%cQue la música acompañe tus aventuras!', 'font-size:13px;font-style:italic;color:#a8a5a0;');
 
-        // Lanzar el tutorial automáticamente la primera vez que se entra
-        if (!Tutorial.hasSeen()) {
+        // Lanzar el tutorial automáticamente la primera vez que entra este usuario.
+        // El estado se guarda por usuario en el servidor (no en localStorage),
+        // para que cada cuenta nueva lo vea una vez en cualquier navegador.
+        if (!campaignMgr.tutorialSeen) {
             setTimeout(function() { tutorial.start(true); }, 700);
         }
     }
@@ -1389,6 +1391,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (confirm('¿Cerrar sesión de ' + userMgr.getUsername() + '?')) userMgr.logout();
         });
     }
+
+    // Al cerrar/terminar el tutorial, recordarlo en el perfil del usuario (servidor)
+    tutorial.onEnd = function() { campaignMgr.markTutorialSeen(); };
 
     // Botón de tutorial: reabre el recorrido guiado desde el principio
     var btnTutorial = document.getElementById('btn-tutorial');

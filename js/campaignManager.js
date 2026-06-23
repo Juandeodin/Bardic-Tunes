@@ -6,6 +6,7 @@ class CampaignManager {
     constructor() {
         this.campaigns        = [];
         this.activeCampaignId = null;
+        this.tutorialSeen     = false;  // ¿este usuario ya completó el tutorial?
         this.token            = null;
         // load() se llama explícitamente desde app.js tras el login
     }
@@ -27,6 +28,7 @@ class CampaignManager {
             const data = await res.json();
             this.campaigns        = data.campaigns || [];
             this.activeCampaignId = data.activeCampaignId || null;
+            this.tutorialSeen     = !!data.tutorialSeen;
             // Validar que la campaña activa existe
             if (this.activeCampaignId && !this.getCampaignById(this.activeCampaignId)) {
                 this.activeCampaignId = this.campaigns.length > 0 ? this.campaigns[0].id : null;
@@ -47,9 +49,17 @@ class CampaignManager {
             },
             body: JSON.stringify({
                 campaigns:        this.campaigns,
-                activeCampaignId: this.activeCampaignId
+                activeCampaignId: this.activeCampaignId,
+                tutorialSeen:     this.tutorialSeen
             })
         }).catch(e => console.error('Error guardando partidas:', e));
+    }
+
+    /** Marca el tutorial como completado para este usuario y lo persiste */
+    markTutorialSeen() {
+        if (this.tutorialSeen) return;
+        this.tutorialSeen = true;
+        this.save();
     }
 
     // ============================================
