@@ -2,6 +2,79 @@
  * App.js - Controlador principal de Bardic Tunes (v2)
  * Nueva arquitectura: partidas + biblioteca + player bar con cola
  */
+
+// ============================================
+// PASOS DEL TUTORIAL GUIADO
+// ============================================
+const TUTORIAL_STEPS = [
+    {
+        icon: '🎶',
+        title: '¡Bienvenido a Bardic Tunes!',
+        text: 'Tu reproductor de música para ambientar partidas de rol. Te enseñamos lo esencial en menos de un minuto.<br><span class="tutorial-hint">Navega con los botones o con las flechas ← → del teclado.</span>'
+    },
+    {
+        icon: '⚔️',
+        title: 'Tus Partidas',
+        text: 'Cada partida guarda su propia biblioteca de canciones. Pulsa el botón <strong>＋</strong> para crear una nueva y escribe su nombre. Cambia de una a otra con un clic.',
+        target: '.campaigns-sidebar',
+        placement: 'right'
+    },
+    {
+        icon: '📂',
+        title: 'Añade Canciones',
+        text: 'Importa música desde las carpetas de tu ordenador. Las canciones se guardan en la <strong>partida activa</strong>, con su descripción y etiquetas.',
+        target: '#btn-add-songs',
+        placement: 'below'
+    },
+    {
+        icon: '🎵',
+        title: 'La Biblioteca',
+        text: 'Aquí ves las canciones de la partida. <strong>Doble clic</strong> para reproducir, edita la descripción en línea y organízalas con <strong>etiquetas</strong>. Usa <strong>Ctrl</strong> o <strong>Shift</strong> + clic para seleccionar varias y aplicar acciones en lote.',
+        target: '#song-library',
+        placement: 'above'
+    },
+    {
+        icon: '🔍',
+        title: 'Busca al Instante',
+        text: 'Filtra por nombre, descripción o carpeta para encontrar la pista perfecta justo cuando la necesitas en la mesa.',
+        target: '#search-input',
+        placement: 'below'
+    },
+    {
+        icon: '▶️',
+        title: 'Controles de Reproducción',
+        text: 'Play/pausa, anterior y siguiente, y una barra de progreso para saltar a cualquier punto.<br><span class="tutorial-hint"></span>',
+        target: '.controls-center',
+        placement: 'above'
+    },
+    {
+        icon: '🔊',
+        title: 'Volumen y Modo',
+        text: 'Ajusta el volumen (↑ ↓ o <strong>M</strong> para silenciar) y elige cómo avanza la cola: <strong>Manual</strong>, <strong>Secuencial</strong> o <strong>Aleatorio</strong>.',
+        target: '.controls-right',
+        placement: 'above'
+    },
+    {
+        icon: '🎶',
+        title: 'La Cola de Reproducción',
+        text: '<strong>Arrastra</strong> canciones desde la biblioteca hasta aquí para encolarlas. Reordénalas arrastrando los chips, o quítalas con la ✕.',
+        target: '.queue-row',
+        placement: 'above'
+    },
+    {
+        icon: '📖',
+        title: 'Vuelve cuando quieras',
+        text: '¿Te perdiste algo? Pulsa este botón en cualquier momento para repetir el tutorial desde el principio.',
+        target: '#btn-tutorial',
+        placement: 'below'
+    },
+    {
+        icon: '✨',
+        title: '¡Listo para la aventura!',
+        text: 'Crea tu primera partida, añade música y que las melodías acompañen tus sesiones.<br><span class="tutorial-hint">🎲 ¡Tirad iniciativa!</span>'
+    }
+];
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // ============================================
@@ -12,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const campaignMgr    = new CampaignManager();
     const configManager  = new ConfigManager();
     const userMgr        = new UserManager();
+    const tutorial       = new Tutorial(TUTORIAL_STEPS);
     let   fileExplorer   = null;
     let   activeTagFilters = new Set(); // IDs de tags activos como filtro en la biblioteca
     let   selectedPaths    = new Set(); // Rutas de canciones seleccionadas (selección múltiple)
@@ -1301,6 +1375,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log('%c🎶 Bardic Tunes v2 — Reproductor de Música para Rol', 'font-size:16px;font-weight:bold;color:#c9a227;');
         console.log('%cQue la música acompañe tus aventuras!', 'font-size:13px;font-style:italic;color:#a8a5a0;');
+
+        // Lanzar el tutorial automáticamente la primera vez que se entra
+        if (!Tutorial.hasSeen()) {
+            setTimeout(function() { tutorial.start(true); }, 700);
+        }
     }
 
     // Botón de logout
@@ -1309,6 +1388,12 @@ document.addEventListener('DOMContentLoaded', () => {
         btnLogout.addEventListener('click', function() {
             if (confirm('¿Cerrar sesión de ' + userMgr.getUsername() + '?')) userMgr.logout();
         });
+    }
+
+    // Botón de tutorial: reabre el recorrido guiado desde el principio
+    var btnTutorial = document.getElementById('btn-tutorial');
+    if (btnTutorial) {
+        btnTutorial.addEventListener('click', function() { tutorial.start(true); });
     }
 
     // ============================================

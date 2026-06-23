@@ -1472,3 +1472,209 @@ body {
     border-color: rgba(255,255,255,0.25);
     color: rgba(168,165,160,0.9);
 }
+
+/* ============================================
+   BOTÓN DE TUTORIAL (header)
+   ============================================ */
+.btn-tutorial {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: rgba(201,162,39,0.8);
+    font-size: 0.8rem;
+    font-family: var(--font-body);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.btn-tutorial:hover {
+    border-color: var(--gold);
+    color: var(--gold-light);
+    background: rgba(201,162,39,0.08);
+}
+.btn-tutorial-icon { font-size: 0.95rem; line-height: 1; }
+
+@media (max-width: 600px) {
+    .btn-tutorial-text { display: none; }
+}
+
+/* ============================================
+   TUTORIAL GUIADO (overlay + foco + ventana flotante)
+   ============================================ */
+.tutorial-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.tutorial-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;       /* bloquea la interacción con la app de fondo */
+}
+/* Paso centrado (sin elemento resaltado): atenúa toda la pantalla */
+.tutorial-overlay.dim {
+    background: rgba(0, 0, 0, 0.78);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+}
+
+/* El foco recorta un hueco sobre el elemento mediante una sombra enorme */
+.tutorial-spotlight {
+    position: fixed;
+    left: 0; top: 0; width: 0; height: 0;
+    border-radius: var(--border-radius);
+    border: 2px solid var(--gold);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78), 0 0 18px 2px var(--gold-glow);
+    pointer-events: none;
+    transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+.tutorial-spotlight.hidden-spot { display: none; }
+
+/* Ventana flotante explicativa */
+.tutorial-popover {
+    position: fixed;
+    z-index: 3001;
+    width: min(340px, calc(100vw - 32px));
+    background: var(--bg-dark);
+    border: 1px solid var(--gold);
+    border-radius: var(--border-radius);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px var(--magic-glow);
+    padding: var(--spacing-lg);
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.96);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.tutorial-popover.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+}
+.tutorial-popover.centered {
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+.tutorial-popover.centered.visible { transform: translate(-50%, -50%) scale(1); }
+
+.tutorial-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+}
+.tutorial-close:hover { color: var(--text-primary); background: var(--bg-medium); }
+
+.tutorial-icon {
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: var(--spacing-sm);
+    filter: drop-shadow(0 0 8px var(--gold-glow));
+}
+.tutorial-title {
+    font-family: var(--font-title);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--gold-light);
+    margin-bottom: var(--spacing-sm);
+}
+.tutorial-text {
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+.tutorial-text strong { color: var(--gold-light); font-weight: 600; }
+.tutorial-hint {
+    display: inline-block;
+    margin-top: var(--spacing-sm);
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.tutorial-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin: var(--spacing-md) 0 var(--spacing-sm);
+}
+.tutorial-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--bg-lighter);
+    transition: background 0.2s, transform 0.2s;
+}
+.tutorial-dot.active {
+    background: var(--gold);
+    transform: scale(1.25);
+}
+
+.tutorial-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+.tutorial-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+.tutorial-step-count {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+}
+.tutorial-skip {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-family: var(--font-body);
+    cursor: pointer;
+    padding: 6px 0;
+    transition: color 0.2s;
+}
+.tutorial-skip:hover { color: var(--text-secondary); text-decoration: underline; }
+
+.tutorial-btn {
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s;
+}
+.tutorial-btn:active { transform: scale(0.96); }
+.tutorial-btn-ghost {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+.tutorial-btn-ghost:hover { border-color: var(--gold); color: var(--text-primary); }
+.tutorial-btn-primary {
+    background: var(--gold);
+    border: 1px solid var(--gold);
+    color: var(--bg-darkest);
+    font-weight: 600;
+}
+.tutorial-btn-primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
+
+/* La barra centrada no necesita el contador a la izquierda repetido */
+.tutorial-popover.centered .tutorial-actions { justify-content: center; }
+.tutorial-popover.centered .tutorial-skip:empty { display: none; }
