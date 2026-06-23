@@ -15,8 +15,11 @@ services:
         source: /DATA/Media/Music
         target: /app/music
         read_only: true
-      - type: volume
-        source: bardic_data
+      - type: bind
+        # ⚠️ Carpeta REAL del host donde se guardan cuentas, partidas y tags.
+        # Sobrevive a cualquier actualización/reinstalación de la app.
+        # Crea la carpeta en tu CasaOS antes de arrancar (mkdir -p).
+        source: /DATA/AppData/bardic-tunes/data
         target: /app/data
     environment:
       - NODE_ENV=production
@@ -37,7 +40,7 @@ services:
             en_us: "Music folder — change source path to your music directory"
         - container: /app/data
           description:
-            en_us: "User data — accounts, campaigns and tags (must be a persistent volume)"
+            en_us: "User data — accounts, campaigns and tags (bind to a persistent host folder)"
 
 # Metadatos de CasaOS (panel, icono, WebUI)
 x-casaos:
@@ -57,8 +60,3 @@ x-casaos:
   category: Entertainment
   port_map: "3000"
   scheme: http
-
-volumes:
-  bardic_data:
-    driver: local
-  index: /

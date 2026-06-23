@@ -1,4 +1,8 @@
 CONTEXT.md
 .github
 music
-data/campaigns/mpmjb8xkuolfepp5zgp.json
+node_modules/
+
+# Datos de usuario (cuentas, partidas, tags) — nunca deben subirse al repo.
+# Solo existen en el volumen/carpeta del servidor.
+data/
