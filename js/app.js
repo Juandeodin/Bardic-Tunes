@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const userMgr        = new UserManager();
     let   fileExplorer   = null;
     let   activeTagFilters = new Set(); // IDs de tags activos como filtro en la biblioteca
+    let   selectedPaths    = new Set(); // Rutas de canciones seleccionadas (selección múltiple)
+    let   visibleTrackPaths = [];       // Rutas visibles tras filtros (orden de la tabla), para selección por rango
+    let   lastClickedPath  = null;      // Última fila marcada, para selección con Shift
 
     // ============================================
     // ELEMENTOS DEL DOM
@@ -26,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput:     document.getElementById('search-input'),
         btnAddSongs:     document.getElementById('btn-add-songs'),
         songLibrary:     document.getElementById('song-library'),
+        selectionBar:    document.getElementById('selection-bar'),
         trackTitle:      document.getElementById('track-title'),
         trackFolder:     document.getElementById('track-folder'),
         timeCurrent:     document.getElementById('time-current'),
@@ -165,10 +169,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function switchCampaign(id) {
         campaignMgr.setActiveCampaign(id);
-        playlist.clear();
+        // La cola NO se vacía: las canciones añadidas desde otras partidas
+        // se mantienen en la cola al cambiar de partida.
         activeTagFilters.clear();
+        selectedPaths.clear();
+        lastClickedPath = null;
         renderCampaignsSidebar();
         renderLibrary();
+        renderQueue();
         if (fileExplorer) fileExplorer.render();
     }
 
@@ -216,8 +224,15 @@ document.addEventListener('DOMContentLoaded', () => {
             el.searchInput.disabled      = true;
             el.btnAddSongs.disabled      = true;
             el.songLibrary.innerHTML     = '<div class="library-empty-state"><span class="empty-icon">⚔️</span><p>Sin partida activa</p><p class="hint">Crea o selecciona una partida en el panel izquierdo</p></div>';
+            selectedPaths.clear();
+            renderSelectionBar();
             return;
         }
+
+        // Eliminar de la selección las rutas que ya no existan en la partida
+        const validPaths = new Set(campaign.tracks.map(function(t) { return t.path; }));
+        Array.from(selectedPaths).forEach(function(p) { if (!validPaths.has(p)) selectedPaths.delete(p); });
+        renderSelectionBar();
 
         el.campaignTitle.textContent = campaign.name;
         el.searchInput.disabled      = false;
@@ -255,10 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const currentPath = playlist.getCurrentTrack()?.path;
+        visibleTrackPaths = tracks.map(function(t) { return t.path; });
 
         const rows = tracks.map(function(track, i) {
             const inQueue   = playlist.hasTrack(track.path);
             const isPlaying = track.path === currentPath;
+            const isSelected = selectedPaths.has(track.path);
             const queueIdx  = inQueue ? playlist.getTracks().findIndex(function(t) { return t.path === track.path; }) + 1 : null;
 
             const numCell = isPlaying && player.isPlaying
@@ -283,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 '<button class="btn-add-tag" data-path="' + escapeHtml(track.path) + '" title="Gestionar tags">🏷️</button>' +
                 '</div>';
 
-            return '<tr class="song-row' + (inQueue ? ' in-queue' : '') + (isPlaying ? ' playing-row' : '') + '" ' +
+            return '<tr class="song-row' + (inQueue ? ' in-queue' : '') + (isPlaying ? ' playing-row' : '') + (isSelected ? ' selected' : '') + '" ' +
                 'draggable="true" data-path="' + escapeHtml(track.path) + '">' +
                 '<td class="col-num">' + numCell + '</td>' +
                 '<td><div class="song-name-cell">' +
@@ -316,6 +333,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function attachLibraryListeners(campaign) {
         const tbody = document.getElementById('song-tbody');
         if (!tbody) return;
+
+        // Selección de filas estilo explorador de archivos:
+        //   clic = seleccionar solo esta · Ctrl/Cmd+clic = añadir/quitar · Shift+clic = rango
+        tbody.querySelectorAll('.song-row').forEach(function(row) {
+            row.addEventListener('click', function(e) {
+                // Ignorar clics sobre zonas con su propia acción
+                if (e.target.closest('.description-cell') ||
+                    e.target.closest('.song-actions') ||
+                    e.target.closest('.song-tags-row')) return;
+
+                var path = row.dataset.path;
+                if (e.ctrlKey || e.metaKey) {
+                    if (selectedPaths.has(path)) selectedPaths.delete(path);
+                    else selectedPaths.add(path);
+                    lastClickedPath = path;
+                } else if (e.shiftKey && lastClickedPath) {
+                    var from = visibleTrackPaths.indexOf(lastClickedPath);
+                    var to   = visibleTrackPaths.indexOf(path);
+                    if (from !== -1 && to !== -1) {
+                        var lo = Math.min(from, to), hi = Math.max(from, to);
+                        selectedPaths.clear();
+                        for (var i = lo; i <= hi; i++) selectedPaths.add(visibleTrackPaths[i]);
+                    } else {
+                        selectedPaths.clear();
+                        selectedPaths.add(path);
+                        lastClickedPath = path;
+                    }
+                    // Evitar que Shift deje texto resaltado por la selección del navegador
+                    var sel = window.getSelection(); if (sel) sel.removeAllRanges();
+                } else {
+                    selectedPaths.clear();
+                    selectedPaths.add(path);
+                    lastClickedPath = path;
+                }
+                updateSelectionUI();
+            });
+        });
 
         // Drag desde biblioteca hacia cola
         tbody.querySelectorAll('.song-row').forEach(function(row) {
@@ -396,6 +450,167 @@ document.addEventListener('DOMContentLoaded', () => {
                 openTagPicker(btn, btn.dataset.path, campaign);
             });
         });
+    }
+
+    // ============================================
+    // FUNCIONES: SELECCIÓN MÚLTIPLE
+    // ============================================
+
+    function renderSelectionBar() {
+        var count = selectedPaths.size;
+        if (count === 0) {
+            el.selectionBar.classList.add('hidden');
+            el.selectionBar.innerHTML = '';
+            return;
+        }
+        el.selectionBar.classList.remove('hidden');
+        el.selectionBar.innerHTML =
+            '<div class="selection-bar-inner">' +
+            '<span class="selection-count">' + count + ' seleccionada' + (count !== 1 ? 's' : '') + '</span>' +
+            '<button class="btn-sel btn-sel-queue" id="btn-sel-queue">➕ Añadir a la cola</button>' +
+            '<button class="btn-sel btn-sel-tag" id="btn-sel-tag">🏷️ Añadir tag</button>' +
+            '<button class="btn-sel btn-sel-delete" id="btn-sel-delete">🗑️ Eliminar</button>' +
+            '<button class="btn-sel btn-sel-clear" id="btn-sel-clear">✕ Quitar selección</button>' +
+            '</div>';
+
+        document.getElementById('btn-sel-queue').addEventListener('click', bulkAddToQueue);
+        document.getElementById('btn-sel-tag').addEventListener('click', function(e) {
+            e.stopPropagation();
+            openBulkTagPicker(e.currentTarget);
+        });
+        document.getElementById('btn-sel-delete').addEventListener('click', bulkDelete);
+        document.getElementById('btn-sel-clear').addEventListener('click', clearSelection);
+    }
+
+    function clearSelection() {
+        selectedPaths.clear();
+        lastClickedPath = null;
+        updateSelectionUI();
+    }
+
+    // Refresca el resaltado de las filas seleccionadas y la barra de acciones
+    // sin reconstruir toda la tabla (preserva el doble clic, el drag, etc.)
+    function updateSelectionUI() {
+        var tbody = document.getElementById('song-tbody');
+        if (tbody) {
+            tbody.querySelectorAll('.song-row').forEach(function(row) {
+                row.classList.toggle('selected', selectedPaths.has(row.dataset.path));
+            });
+        }
+        renderSelectionBar();
+    }
+
+    function bulkAddToQueue() {
+        var campaign = campaignMgr.getActiveCampaign();
+        if (!campaign) return;
+        // Respetar el orden de la biblioteca al encolar
+        var toAdd = campaign.tracks
+            .filter(function(t) { return selectedPaths.has(t.path); })
+            .map(function(t) { return getPlayableTrack(t); });
+        if (toAdd.length === 0) return;
+        playlist.addTracks(toAdd, false); // dispara onPlaylistUpdate (cola + biblioteca)
+    }
+
+    function bulkDelete() {
+        var campaign = campaignMgr.getActiveCampaign();
+        if (!campaign) return;
+        var count = selectedPaths.size;
+        if (count === 0) return;
+        if (!confirm('¿Eliminar ' + count + ' canción(es) de la partida? También se quitarán de la cola.')) return;
+        Array.from(selectedPaths).forEach(function(path) {
+            campaignMgr.removeTrack(campaign.id, path);
+            playlist.removeTrackByPath(path);
+        });
+        selectedPaths.clear();
+        lastClickedPath = null;
+        if (fileExplorer) fileExplorer.render();
+        renderLibrary();
+        renderQueue();
+        renderCampaignsSidebar();
+    }
+
+    function openBulkTagPicker(btn) {
+        closeTagPicker();
+        var campaign = campaignMgr.getActiveCampaign();
+        if (!campaign) return;
+        var rect   = btn.getBoundingClientRect();
+        var picker = document.createElement('div');
+        picker.className = 'tag-picker';
+        picker.id        = 'active-tag-picker';
+        picker.style.left = rect.left + 'px';
+        picker.style.top  = (rect.bottom + 4) + 'px';
+
+        // Pistas seleccionadas (para saber qué tags comparten todas)
+        var selectedTracks = campaign.tracks.filter(function(t) { return selectedPaths.has(t.path); });
+        var sharedByAll = function(tagId) {
+            return selectedTracks.length > 0 &&
+                selectedTracks.every(function(t) { return (t.tags || []).includes(tagId); });
+        };
+
+        var campaignTags = campaign.tags || [];
+        var html = '';
+        if (campaignTags.length === 0) {
+            html += '<div class="tag-picker-empty">Crea un tag con "+ Tag" en la barra superior.</div>';
+        } else {
+            html += campaignTags.map(function(tag) {
+                var active = sharedByAll(tag.id);
+                return '<div class="tag-picker-item' + (active ? ' active' : '') + '" data-tag-id="' + tag.id + '">' +
+                    '<span class="tag-dot" style="background:' + tag.color + '"></span>' +
+                    '<span class="tag-picker-name">' + escapeHtml(tag.name) + '</span>' +
+                    (active ? '<span class="tag-check">✓</span>' : '') +
+                    '</div>';
+            }).join('');
+        }
+        html += '<div class="tag-picker-new">' +
+            '<input type="text" class="tag-picker-input" placeholder="+ Nuevo tag y asignar..." maxlength="24">' +
+            '</div>';
+        picker.innerHTML = html;
+        document.body.appendChild(picker);
+
+        var pr = picker.getBoundingClientRect();
+        if (pr.right  > window.innerWidth  - 8) picker.style.left = Math.max(8, window.innerWidth  - pr.width  - 8) + 'px';
+        if (pr.bottom > window.innerHeight - 8) picker.style.top  = Math.max(8, rect.top - pr.height - 4) + 'px';
+
+        // Si todas las seleccionadas ya tienen el tag → se lo quita a todas; si no → se lo pone a todas
+        var toggleTagOnSelection = function(tagId) {
+            var removeFromAll = sharedByAll(tagId);
+            selectedTracks.forEach(function(t) {
+                if (removeFromAll) campaignMgr.toggleTagOnTrack(campaign.id, t.path, tagId);
+                else               campaignMgr.addTagToTrack(campaign.id, t.path, tagId);
+            });
+        };
+
+        picker.querySelectorAll('.tag-picker-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleTagOnSelection(item.dataset.tagId);
+                renderLibrary();
+                closeTagPicker();
+            });
+        });
+
+        var input = picker.querySelector('.tag-picker-input');
+        input.addEventListener('keydown', function(e) {
+            e.stopPropagation();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                var name = input.value.trim();
+                if (name) {
+                    var newTag = campaignMgr.createTag(campaign.id, name);
+                    if (newTag) selectedTracks.forEach(function(t) {
+                        campaignMgr.addTagToTrack(campaign.id, t.path, newTag.id);
+                    });
+                }
+                renderLibrary();
+                closeTagPicker();
+            }
+            if (e.key === 'Escape') { e.preventDefault(); closeTagPicker(); }
+        });
+        input.addEventListener('click', function(e) { e.stopPropagation(); });
+
+        setTimeout(function() {
+            document.addEventListener('click', closeTagPicker, { once: true });
+        }, 0);
     }
 
     // ============================================
@@ -785,9 +1000,12 @@ document.addEventListener('DOMContentLoaded', () => {
     el.btnNewCampaign.addEventListener('click', function() {
         var c = campaignMgr.createCampaign('Nueva Partida');
         campaignMgr.setActiveCampaign(c.id);
-        playlist.clear();
+        // Se conserva la cola actual al crear una nueva partida.
+        selectedPaths.clear();
+        lastClickedPath = null;
         renderCampaignsSidebar();
         renderLibrary();
+        renderQueue();
         // Entrar inmediatamente en modo rename para que el usuario escriba el nombre
         startRename(c.id);
     });
@@ -896,6 +1114,15 @@ document.addEventListener('DOMContentLoaded', () => {
     el.btnClearQueue.addEventListener('click', function() {
         playlist.clear();
         if (fileExplorer) fileExplorer.render();
+    });
+
+    // Clic fuera de una canción → deseleccionar (salvo en la barra de acciones o el selector de tags)
+    document.addEventListener('click', function(e) {
+        if (selectedPaths.size === 0) return;
+        if (e.target.closest('.song-row') ||
+            e.target.closest('#selection-bar') ||
+            e.target.closest('.tag-picker')) return;
+        clearSelection();
     });
 
     // ============================================
